@@ -1,0 +1,232 @@
+Identified credit sources and architected comprehensive AI system prompt
+Identified credit sources and architected comprehensive AI system prompt
+The user wants two things:
+
+Who to ask/contact to get free API credits for their hackathon project
+A prompt to give to an AI model to build their project
+Let me address both.
+
+For free credits, they're using:
+
+OpenAI Whisper (they mention "free" but Whisper API isn't free - they might mean self-hosted)
+Gemini 1.5 Flash (has free tier)
+Other open source tools
+Let me think about who to contact for free credits:
+
+Google for Startups / Google AI - for Gemini credits
+OpenAI - for Whisper API credits (hackathon programs)
+HackerEarth might have partnerships
+The hackathon organizers themselves (EDCS/Karnataka government hackathon)
+For the prompt, they want a comprehensive prompt to give to an AI to build the system. I'll write a detailed system/project prompt.
+
+Show less
+Done
+Two parts — credits first, then the build prompt.
+1. Who to Contact for Free Credits
+For Gemini (Google):
+
+Apply at ai.google.dev/competition or email googleforstartups@google.com
+Subject: "Hackathon credit request — AI SkillFit, Karnataka EDCS Theme 5"
+Google routinely gives $500–$2000 in Google Cloud credits for hackathons. Gemini 1.5 Flash free tier (15 req/min) may already be enough for a prototype.
+For OpenAI Whisper API:
+
+Email support@openai.com with subject: "API credit request for government hackathon"
+Alternatively, self-host Whisper (it's open-source) on a free GPU — use Google Colab (free T4 GPU) or Kaggle Notebooks (free). No credits needed.
+From the Hackathon Itself:
+
+Email the EDCS organizers directly through HackerEarth and ask if they have sponsor API credit packages — many government hackathons pre-arrange this with Google/Microsoft.
+Ask in the hackathon Discord/Slack — other teams or mentors often share credit codes.
+Other options:
+
+Render.com — already free tier, no action needed
+Supabase — free tier, no action needed
+Groq — free Whisper-compatible API, faster than OpenAI, no credits needed: console.groq.com
+Fastest path: Use Groq for Whisper (free, no approval) + Gemini free tier (free, instant). You likely don't need credits at all for a 7-day prototype.
+
+2. The Build Prompt
+Copy this entire prompt and give it to Claude, GPT-4, or Gemini:
+
+You are a senior full-stack AI engineer. Help me build "AI SkillFit" — 
+a mobile-first, voice-driven video interview and workforce assessment 
+platform for Karnataka's blue-collar job candidates. This is for a 
+7-day hackathon. Here is the full project spec:
+
+---
+
+PROJECT: AI SkillFit
+GOAL: A candidate opens a WhatsApp link on their Android phone, 
+completes a 5–7 question voice+video interview in Kannada/Hindi/English, 
+and gets classified into a workforce category. Government officers see 
+all candidates on an admin dashboard.
+
+TECH STACK (all free):
+- Frontend: React PWA (no app install, works on 2G Android)
+- Backend: FastAPI + PostgreSQL
+- Speech-to-Text: Groq Whisper API (free tier)
+- LLM Scoring: Gemini 1.5 Flash API (free tier)
+- Face/Liveness: OpenCV + MediaPipe (open source)
+- Duplicate detection: face_recognition library (dlib embeddings)
+- Hosting: Supabase (DB + storage) + Render.com (backend)
+
+---
+
+CANDIDATE FLOW:
+1. Candidate receives WhatsApp link
+2. Opens PWA in browser — no install
+3. Enters name + phone number (OTP optional for prototype)
+4. AI agent greets them by voice in auto-detected language 
+   (Kannada default, Hindi, English)
+5. AI asks 5–7 trade-specific questions via text-to-speech
+   - Example trades: Welder, Electrician, Carpenter, Plumber
+   - Questions are pre-written per trade, played as audio
+6. Candidate records video response for each question 
+   (30 sec max per question)
+7. On submission:
+   - Groq Whisper transcribes audio (handles Kannada dialects, 
+     accents, code-mixing)
+   - Gemini 1.5 Flash scores each response on:
+     * Relevance (0–10): Did they answer the question?
+     * Clarity (0–10): Was communication understandable?
+     * Confidence (0–10): Did they show domain knowledge?
+   - Rubric instruction to Gemini: "Do NOT penalise dialect, 
+     informal phrasing, or code-mixing. Score only content."
+   - OpenCV checks face presence every 5 seconds of video
+   - MediaPipe liveness check (blink/movement detection)
+   - face_recognition generates face embedding, checks DB 
+     for duplicate faces
+   - Phone number + device fingerprint also checked for duplicates
+8. Candidate receives classification:
+   - Job-Ready: avg score ≥ 7, clean integrity
+   - Requires Training: avg score 4–6, clean integrity
+   - Manual Verification: borderline scores OR mild integrity flag
+   - Poor Quality: audio/video too degraded to score
+   - Suspected Duplicate: face/phone/device match found
+
+IMPORTANT: No candidate is ever auto-rejected. All flagged 
+candidates go to human officer review.
+
+---
+
+ADMIN DASHBOARD:
+- Login for government officers
+- Table of all candidates with: name, trade, district, 
+  classification, scores, date
+- Filters: by district, trade, language, classification
+- Click any candidate to see:
+  * Video playback per question
+  * Whisper transcript
+  * Gemini score breakdown with reasoning
+  * Integrity check results
+  * Flag reason (if any)
+- Actions: Shortlist / Send to Training / Request Re-interview / 
+  Escalate for Verification
+- Full audit log of every officer action
+
+---
+
+DATABASE SCHEMA (PostgreSQL):
+Tables needed:
+- candidates (id, name, phone, district, trade, language, 
+  device_fingerprint, face_embedding, created_at)
+- interviews (id, candidate_id, status, created_at, completed_at)
+- responses (id, interview_id, question_id, video_url, 
+  transcript, relevance_score, clarity_score, 
+  confidence_score, gemini_reasoning)
+- integrity_checks (id, interview_id, face_present_pct, 
+  liveness_pass, duplicate_candidate_id, flags)
+- classifications (id, interview_id, category, avg_score, 
+  reasoning, reviewed_by, reviewed_at)
+- officer_actions (id, classification_id, action, officer_id, 
+  notes, created_at)
+
+---
+
+QUESTIONS BANK (example — Welder trade, Kannada):
+Q1: "ನೀವು ಯಾವ ರೀತಿಯ ವೆಲ್ಡಿಂಗ್ ಕೆಲಸ ಮಾಡಿದ್ದೀರಿ?" 
+    (What types of welding work have you done?)
+Q2: "ಸ್ಟೀಲ್ ವೆಲ್ಡ್ ಮಾಡುವಾಗ ಯಾವ ಸುರಕ್ಷತಾ ಕ್ರಮಗಳನ್ನು ತೆಗೆದುಕೊಳ್ಳುತ್ತೀರಿ?"
+    (What safety measures do you take when welding steel?)
+Q3: "ನಿಮ್ಮ ಅತ್ಯಂತ ಕಷ್ಟದ ವೆಲ್ಡಿಂಗ್ ಕೆಲಸ ಯಾವುದು?"
+    (What was your most challenging welding job?)
+
+---
+
+GROQ WHISPER INTEGRATION:
+import groq
+client = groq.Client(api_key=GROQ_API_KEY)
+# Transcribe audio file
+transcription = client.audio.transcriptions.create(
+    file=audio_file,
+    model="whisper-large-v3",
+    language="kn",  # auto-detect if unknown
+    response_format="verbose_json"
+)
+# Flag if confidence < 0.6 — offer re-record
+
+---
+
+GEMINI SCORING PROMPT TEMPLATE:
+System: You are an expert workforce assessor for blue-collar 
+trades in Karnataka, India. You score interview responses fairly 
+and do not penalise candidates for dialect, accent, informal 
+language, or code-mixing between Kannada, Hindi, and English. 
+Score only the content and intent of the response.
+
+User: 
+Trade: {trade}
+Question asked: {question}
+Candidate response (transcribed): {transcript}
+
+Score this response on three dimensions (0–10 each):
+1. Relevance: Did the candidate address the question?
+2. Clarity: Was the response understandable and organized?
+3. Confidence: Did the candidate demonstrate trade knowledge?
+
+Respond in JSON only:
+{
+  "relevance": <0-10>,
+  "clarity": <0-10>,
+  "confidence": <0-10>,
+  "reasoning": "<2 sentence explanation>",
+  "language_detected": "<kannada|hindi|english|mixed>"
+}
+
+---
+
+FACE/LIVENESS CHECK (Python):
+import cv2
+import mediapipe as mp
+from face_recognition import face_encodings, compare_faces
+
+def check_face_presence(video_path):
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    check_interval = int(fps * 5)  # every 5 seconds
+    frames_with_face = 0
+    total_checks = 0
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret: break
+        if int(cap.get(cv2.CAP_PROP_POS_FRAMES)) % check_interval == 0:
+            # detect face
+            ...
+    return frames_with_face / total_checks  # % face present
+
+---
+
+BUILD INSTRUCTIONS:
+Please help me build this one component at a time. Start with:
+1. The FastAPI backend structure with all routes defined
+2. The PostgreSQL schema as SQL migration files
+3. The React PWA shell with camera/mic access and question flow
+4. The Groq Whisper integration endpoint
+5. The Gemini scoring endpoint
+6. The face check pipeline
+7. The admin dashboard React component
+
+For each component, give me complete, working, copy-paste-ready code. 
+Use environment variables for all API keys. 
+Add comments in English explaining each section.
+Make the UI functional first, pretty second.
+Target: working end-to-end demo in 7 days.
+do everything I need to win the hackathon 1st place

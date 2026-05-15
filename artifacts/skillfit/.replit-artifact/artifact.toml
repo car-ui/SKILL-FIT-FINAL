@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "AI SkillFit"
+version = "1.0.0"
+id = "artifacts/skillfit"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22399
+
+[services.development]
+run = "pnpm --filter @workspace/skillfit run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/skillfit", "run", "build" ]
+publicDir = "artifacts/skillfit/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22399"
+BASE_PATH = "/"

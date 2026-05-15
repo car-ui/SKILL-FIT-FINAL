@@ -1,0 +1,29 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "PORT=3001 npx pnpm --filter @workspace/api-server dev & PORT=3000 VITE_API_BASE_URL=http://localhost:3001 npx pnpm --filter @workspace/skillfit dev",
+    "build": "npx pnpm run typecheck && npx pnpm -r --if-present run build",
+    "start": "PORT=3001 npx pnpm --filter @workspace/api-server start & PORT=3000 VITE_API_BASE_URL=http://localhost:3001 npx pnpm --filter @workspace/skillfit serve",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "npx pnpm run typecheck:libs && npx pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "dev:api": "npx pnpm --filter @workspace/api-server dev",
+    "dev:web": "npx pnpm --filter @workspace/skillfit dev",
+    "db:push": "npx pnpm --filter @workspace/db push",
+    "seed:admin": "npx pnpm --filter @workspace/api-server run seed:admin",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "private": true,
+  "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.2",
+    "@tailwindcss/oxide-win32-x64-msvc": "^4.2.4",
+    "lightningcss-win32-x64-msvc": "^1.32.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

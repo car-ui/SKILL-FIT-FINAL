@@ -1,0 +1,1093 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: AI SkillFit API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: candidates
+    description: Candidate management
+  - name: interviews
+    description: Interview management
+  - name: questions
+    description: Question bank
+  - name: scoring
+    description: AI scoring and classification
+  - name: admin
+    description: Admin officer operations
+  - name: stats
+    description: Dashboard statistics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /candidates:
+    post:
+      operationId: registerCandidate
+      tags: [candidates]
+      summary: Register a new candidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterCandidateBody"
+      responses:
+        "201":
+          description: Registered candidate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Candidate"
+        "409":
+          description: Duplicate candidate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    get:
+      operationId: listCandidates
+      tags: [candidates]
+      summary: List all candidates (admin)
+      parameters:
+        - name: district
+          in: query
+          schema:
+            type: string
+        - name: trade
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: classification
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated candidates list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CandidateListResponse"
+
+  /candidates/{id}:
+    get:
+      operationId: getCandidate
+      tags: [candidates]
+      summary: Get candidate detail with interview data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Candidate detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CandidateDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /interviews:
+    post:
+      operationId: startInterview
+      tags: [interviews]
+      summary: Start a new interview for a candidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartInterviewBody"
+      responses:
+        "201":
+          description: Interview started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Interview"
+
+  /interviews/{id}:
+    get:
+      operationId: getInterview
+      tags: [interviews]
+      summary: Get interview with responses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Interview detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewDetail"
+
+  /interviews/{id}/questions:
+    get:
+      operationId: getInterviewQuestions
+      tags: [interviews]
+      summary: Get randomized question set for this interview (stored server-side)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: next
+          in: query
+          schema:
+            type: boolean
+          description: Return the next adaptive question for this interview session
+      responses:
+        "200":
+          description: Ordered questions for this session only
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/Question"
+                  - type: object
+                    properties:
+                      question:
+                        anyOf:
+                          - $ref: "#/components/schemas/Question"
+                          - type: "null"
+                      totalQuestions:
+                        type: integer
+                      askedCount:
+                        type: integer
+                    required:
+                      - question
+                      - totalQuestions
+                      - askedCount
+        "400":
+          description: Interview not active
+        "404":
+          description: Not found
+
+  /interviews/{id}/complete:
+    post:
+      operationId: completeInterview
+      tags: [interviews]
+      summary: Mark interview as complete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Completed interview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Interview"
+
+  /interviews/{id}/responses:
+    post:
+      operationId: submitResponse
+      tags: [interviews]
+      summary: Submit a response for a question
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitResponseBody"
+      responses:
+        "201":
+          description: Response submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+
+  /questions:
+    get:
+      operationId: listQuestions
+      tags: [questions]
+      summary: Public stable question list (first N in pool). For secure interviews use GET /interviews/{id}/questions.
+      parameters:
+        - name: trade
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+            default: en
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+            maximum: 10
+      responses:
+        "200":
+          description: Questions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+
+  /scoring/score-response:
+    post:
+      operationId: scoreResponse
+      tags: [scoring]
+      summary: Score a candidate response using Gemini AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScoreResponseBody"
+      responses:
+        "200":
+          description: Scoring result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResult"
+
+  /scoring/classify/{interviewId}:
+    post:
+      operationId: classifyInterview
+      tags: [scoring]
+      summary: Classify a completed interview
+      parameters:
+        - name: interviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Classification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Classification"
+
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Admin officer login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginBody"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [admin]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logged out
+
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: Get current admin session
+      responses:
+        "200":
+          description: Admin info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInfo"
+        "401":
+          description: Not authenticated
+
+  /admin/questions-pool:
+    get:
+      operationId: getAdminQuestionsPool
+      tags: [admin]
+      summary: "[Admin] Large slice of question pool for QA / rubric review"
+      parameters:
+        - name: trade
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: language
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+      responses:
+        "200":
+          description: Question pool entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+        "401":
+          description: Not authenticated
+
+  /admin/actions:
+    post:
+      operationId: createOfficerAction
+      tags: [admin]
+      summary: Record an officer action on a candidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfficerActionBody"
+      responses:
+        "201":
+          description: Action recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfficerAction"
+
+  /admin/actions/{candidateId}:
+    get:
+      operationId: getCandidateActions
+      tags: [admin]
+      summary: Get audit log for a candidate
+      parameters:
+        - name: candidateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of officer actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OfficerAction"
+
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/by-trade:
+    get:
+      operationId: getStatsByTrade
+      tags: [stats]
+      summary: Get candidate counts grouped by trade
+      responses:
+        "200":
+          description: Trade breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TradeStats"
+
+  /stats/by-district:
+    get:
+      operationId: getStatsByDistrict
+      tags: [stats]
+      summary: Get candidate counts grouped by district
+      responses:
+        "200":
+          description: District breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DistrictStats"
+
+  /stats/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [stats]
+      summary: Get recent interview activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    RegisterCandidateBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        district:
+          type: string
+        trade:
+          type: string
+        language:
+          type: string
+          enum: [kn, hi, en]
+        deviceFingerprint:
+          type: string
+      required:
+        - name
+        - phone
+        - district
+        - trade
+        - language
+
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        district:
+          type: string
+        trade:
+          type: string
+        language:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - phone
+        - district
+        - trade
+        - language
+        - createdAt
+
+    CandidateListResponse:
+      type: object
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CandidateWithClassification"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - candidates
+        - total
+        - page
+        - limit
+
+    CandidateWithClassification:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        district:
+          type: string
+        trade:
+          type: string
+        language:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        classification:
+          type: string
+          nullable: true
+        avgScore:
+          type: number
+          nullable: true
+        interviewId:
+          type: integer
+          nullable: true
+        interviewStatus:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - phone
+        - district
+        - trade
+        - language
+        - createdAt
+
+    CandidateDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        district:
+          type: string
+        trade:
+          type: string
+        language:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        interview:
+          $ref: "#/components/schemas/InterviewDetail"
+          nullable: true
+        classification:
+          $ref: "#/components/schemas/Classification"
+          nullable: true
+        integrityCheck:
+          $ref: "#/components/schemas/IntegrityCheck"
+          nullable: true
+        officerActions:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfficerAction"
+      required:
+        - id
+        - name
+        - phone
+        - district
+        - trade
+        - language
+        - createdAt
+        - officerActions
+
+    StartInterviewBody:
+      type: object
+      properties:
+        candidateId:
+          type: integer
+      required:
+        - candidateId
+
+    Interview:
+      type: object
+      properties:
+        id:
+          type: integer
+        candidateId:
+          type: integer
+        status:
+          type: string
+          enum: [in_progress, completed, abandoned]
+        questionSnapshot:
+          type: string
+          nullable: true
+          description: JSON array of questions assigned to this interview
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - candidateId
+        - status
+        - createdAt
+
+    InterviewDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        candidateId:
+          type: integer
+        status:
+          type: string
+        questionSnapshot:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        responses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Response"
+      required:
+        - id
+        - candidateId
+        - status
+        - createdAt
+        - responses
+
+    SubmitResponseBody:
+      type: object
+      properties:
+        questionId:
+          type: string
+        questionText:
+          type: string
+        transcript:
+          type: string
+        videoUrl:
+          type: string
+          nullable: true
+        facePresentPct:
+          type: number
+          nullable: true
+        livenessPass:
+          type: boolean
+          nullable: true
+      required:
+        - questionId
+        - questionText
+        - transcript
+
+    Response:
+      type: object
+      properties:
+        id:
+          type: integer
+        interviewId:
+          type: integer
+        questionId:
+          type: string
+        questionText:
+          type: string
+        transcript:
+          type: string
+        videoUrl:
+          type: string
+          nullable: true
+        relevanceScore:
+          type: number
+          nullable: true
+        clarityScore:
+          type: number
+          nullable: true
+        confidenceScore:
+          type: number
+          nullable: true
+        geminiReasoning:
+          type: string
+          nullable: true
+        languageDetected:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - interviewId
+        - questionId
+        - questionText
+        - transcript
+        - createdAt
+
+    Question:
+      type: object
+      properties:
+        id:
+          type: string
+        trade:
+          type: string
+        language:
+          type: string
+        text:
+          type: string
+        category:
+          type: string
+          description: Rubric bucket (experience, safety, skill, etc.)
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+          description: Adaptive difficulty level for the current question
+        audioHint:
+          type: string
+          nullable: true
+      required:
+        - id
+        - trade
+        - language
+        - text
+
+    ScoreResponseBody:
+      type: object
+      properties:
+        trade:
+          type: string
+        questionText:
+          type: string
+        transcript:
+          type: string
+        language:
+          type: string
+          nullable: true
+      required:
+        - trade
+        - questionText
+        - transcript
+
+    ScoreResult:
+      type: object
+      properties:
+        relevance:
+          type: number
+        clarity:
+          type: number
+        confidence:
+          type: number
+        reasoning:
+          type: string
+        languageDetected:
+          type: string
+      required:
+        - relevance
+        - clarity
+        - confidence
+        - reasoning
+        - languageDetected
+
+    Classification:
+      type: object
+      properties:
+        id:
+          type: integer
+        interviewId:
+          type: integer
+        category:
+          type: string
+          enum: [job_ready, requires_training, manual_verification, poor_quality, suspected_duplicate]
+        avgScore:
+          type: number
+        reasoning:
+          type: string
+        reviewedBy:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - interviewId
+        - category
+        - avgScore
+        - reasoning
+        - createdAt
+
+    IntegrityCheck:
+      type: object
+      properties:
+        id:
+          type: integer
+        interviewId:
+          type: integer
+        facePresentPct:
+          type: number
+          nullable: true
+        livenessPass:
+          type: boolean
+          nullable: true
+        duplicateCandidateId:
+          type: integer
+          nullable: true
+        flags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - interviewId
+        - flags
+
+    AdminLoginBody:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+
+    AdminLoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        username:
+          type: string
+      required:
+        - success
+        - username
+
+    AdminInfo:
+      type: object
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+      required:
+        - username
+        - role
+
+    OfficerActionBody:
+      type: object
+      properties:
+        candidateId:
+          type: integer
+        interviewId:
+          type: integer
+          nullable: true
+        action:
+          type: string
+          enum: [shortlist, send_to_training, request_reinterview, escalate, approve, reject]
+        notes:
+          type: string
+          nullable: true
+      required:
+        - candidateId
+        - action
+
+    OfficerAction:
+      type: object
+      properties:
+        id:
+          type: integer
+        candidateId:
+          type: integer
+        interviewId:
+          type: integer
+          nullable: true
+        action:
+          type: string
+        officerUsername:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - candidateId
+        - action
+        - officerUsername
+        - createdAt
+
+    DashboardStats:
+      type: object
+      properties:
+        totalCandidates:
+          type: integer
+        completedInterviews:
+          type: integer
+        jobReadyCount:
+          type: integer
+        requiresTrainingCount:
+          type: integer
+        manualVerificationCount:
+          type: integer
+        suspectedDuplicateCount:
+          type: integer
+        poorQualityCount:
+          type: integer
+        pendingReviewCount:
+          type: integer
+        avgScoreOverall:
+          type: number
+          nullable: true
+      required:
+        - totalCandidates
+        - completedInterviews
+        - jobReadyCount
+        - requiresTrainingCount
+        - manualVerificationCount
+        - suspectedDuplicateCount
+        - poorQualityCount
+        - pendingReviewCount
+
+    TradeStats:
+      type: object
+      properties:
+        trade:
+          type: string
+        count:
+          type: integer
+        avgScore:
+          type: number
+          nullable: true
+      required:
+        - trade
+        - count
+
+    DistrictStats:
+      type: object
+      properties:
+        district:
+          type: string
+        count:
+          type: integer
+      required:
+        - district
+        - count
+
+    ActivityItem:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [interview_completed, candidate_registered, action_taken]
+        candidateId:
+          type: integer
+        candidateName:
+          type: string
+        trade:
+          type: string
+        classification:
+          type: string
+          nullable: true
+        action:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - type
+        - candidateId
+        - candidateName
+        - trade
+        - timestamp

@@ -1,0 +1,42 @@
+# Local dev stack: PostgreSQL + Redis
+# docker compose up -d
+# pnpm db:push
+# pnpm --filter @workspace/api-server run seed:admin
+# pnpm dev:api   (port 3000)
+# pnpm dev:web   (port 5173)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skillfit-postgres
+    environment:
+      POSTGRES_USER: skillfit
+      POSTGRES_PASSWORD: skillfit
+      POSTGRES_DB: skillfit
+    ports:
+      - "5432:5432"
+    volumes:
+      - skillfit_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillfit -d skillfit"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+
+  redis:
+    image: redis:7-alpine
+    container_name: skillfit-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - skillfit_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  skillfit_pgdata:
+  skillfit_redis:
