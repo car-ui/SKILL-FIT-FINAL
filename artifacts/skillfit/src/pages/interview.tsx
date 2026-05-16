@@ -42,12 +42,83 @@ type InterviewQuestion = {
   difficulty?: "easy" | "medium" | "hard";
 };
 
-const TTS_LANG: Record<string, string> = {
-  kn: "kn-IN",
-  hi: "hi-IN",
-  en: "en-IN",
+type InterviewLanguage = "en" | "hi" | "kn";
+
+const TTS_LANG_OPTIONS: Record<InterviewLanguage, string[]> = {
+  kn: ["kn-IN", "kn"],
+  hi: ["hi-IN", "hi"],
+  en: ["en-IN", "en-US", "en-GB", "en"],
+};
+
+const TTS_LANGUAGE_NAMES: Record<InterviewLanguage, string[]> = {
+  kn: ["kannada", "ಕನ್ನಡ"],
+  hi: ["hindi", "हिन्दी", "हिंदी"],
+  en: ["english"],
+};
+
+const FIRST_QUESTION_GREETING: Record<InterviewLanguage, string> = {
+  en: "Welcome to your AI SkillFit interview. Please listen carefully and answer clearly in your own voice.",
+  hi: "AI SkillFit साक्षात्कार में आपका स्वागत है। कृपया ध्यान से सुनें और अपनी आवाज़ में स्पष्ट उत्तर दें।",
+  kn: "AI SkillFit ಸಂದರ್ಶನಕ್ಕೆ ಸ್ವಾಗತ. ದಯವಿಟ್ಟು ಗಮನದಿಂದ ಕೇಳಿ ಮತ್ತು ನಿಮ್ಮ ಸ್ವಂತ ಧ್ವನಿಯಲ್ಲಿ ಸ್ಪಷ್ಟವಾಗಿ ಉತ್ತರಿಸಿ.",
 };
 const INTERVIEW_QUESTION_LIMIT = 5;
+const TTS_VOICE_WAIT_MS = 900;
+
+function normalizeInterviewLanguage(language?: string): InterviewLanguage {
+  return language === "kn" || language === "hi" ? language : "en";
+}
+
+function getPrimarySpeechLang(language: InterviewLanguage) {
+  return TTS_LANG_OPTIONS[language][0] ?? "en-IN";
+}
+
+function normalizeSpeechLang(language: string) {
+  return language.toLowerCase().replace("_", "-");
+}
+
+function voiceMatchesLanguage(voice: SpeechSynthesisVoice, language: InterviewLanguage) {
+  const voiceLang = normalizeSpeechLang(voice.lang);
+  const languageCodes = TTS_LANG_OPTIONS[language].map(normalizeSpeechLang);
+  const primaryCodes = languageCodes.map((code) => code.split("-")[0]);
+  const voiceName = voice.name.toLowerCase();
+
+  return (
+    languageCodes.includes(voiceLang) ||
+    primaryCodes.includes(voiceLang.split("-")[0] ?? "") ||
+    TTS_LANGUAGE_NAMES[language].some((name) => voiceName.includes(name.toLowerCase()))
+  );
+}
+
+function selectSpeechVoice(voices: SpeechSynthesisVoice[], language: InterviewLanguage) {
+  const languageCodes = TTS_LANG_OPTIONS[language].map(normalizeSpeechLang);
+
+  return (
+    voices.find((voice) => languageCodes.includes(normalizeSpeechLang(voice.lang))) ??
+    voices.find((voice) => voiceMatchesLanguage(voice, language)) ??
+    null
+  );
+}
+
+function buildQuestionSpeechText(questionText: string, questionIndex: number, language: InterviewLanguage) {
+  if (questionIndex !== 0) return questionText;
+  return `${FIRST_QUESTION_GREETING[language]} ${questionText}`;
+}
+
+function createQuestionUtterance(
+  text: string,
+  language: InterviewLanguage,
+  voices: SpeechSynthesisVoice[],
+) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voice = selectSpeechVoice(voices, language);
+
+  utterance.lang = voice?.lang || getPrimarySpeechLang(language);
+  utterance.rate = language === "en" ? 0.92 : 0.88;
+  utterance.pitch = 1;
+  if (voice) utterance.voice = voice;
+
+  return utterance;
+}
 
 async function transcribeWithGroq(videoBlob: Blob, language: string): Promise<string | null> {
   try {
@@ -128,6 +199,7 @@ export default function Interview() {
   const classifyMutation = useClassifyInterview();
 
   const currentQuestion = questions[currentIdx];
+  const currentQuestionLanguage = normalizeInterviewLanguage(currentQuestion?.language || lang);
   const effectiveTotalQuestions = Math.min(totalQuestions, INTERVIEW_QUESTION_LIMIT);
   const isLast = currentIdx >= effectiveTotalQuestions - 1;
   const cameraTooPoor = !cameraError && faceChecks.total >= 3 && facePct < 35;
@@ -245,52 +317,63 @@ export default function Interview() {
     };
   }, [cameraReady]);
 
-// WITH THIS:
-useEffect(() => {
-  if (!currentQuestion?.text || typeof window === "undefined") return;
+  useEffect(() => {
+    if (!currentQuestion?.text || typeof window === "undefined" || !window.speechSynthesis) return;
 
-  const synth = window.speechSynthesis;
-  synth.cancel();
+    const synth = window.speechSynthesis;
+    const speechLanguage = normalizeInterviewLanguage(currentQuestion.language || lang);
+    const speechText = buildQuestionSpeechText(currentQuestion.text, currentIdx, speechLanguage);
 
-  let cancelled = false;
+    let cancelled = false;
+    let speakTimer: ReturnType<typeof setTimeout> | null = null;
+    let voiceWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function speakWithVoice(voices: SpeechSynthesisVoice[]) {
-    if (cancelled) return;
-    const targetLang = TTS_LANG[lang] ?? "en-IN";
-    const utter = new SpeechSynthesisUtterance(currentQuestion!.text);
-    utter.lang = targetLang;
-    utter.rate = 0.92;
+    function speakWithVoice(voices: SpeechSynthesisVoice[]) {
+      if (cancelled) return;
+      synth.cancel();
 
-    // Find the best available voice for the language
-    const exactMatch = voices.find((v) => v.lang === targetLang);
-    const partialMatch = voices.find((v) => v.lang.startsWith(lang));
-    if (exactMatch) utter.voice = exactMatch;
-    else if (partialMatch) utter.voice = partialMatch;
-    // if neither found, browser will attempt online TTS with the lang tag set
-    
-    // Slight delay to ensure the browser doesn't block the audio
-    setTimeout(() => {
-      if (!cancelled) synth.speak(utter);
-    }, 100);
-  }
+      const utter = createQuestionUtterance(speechText, speechLanguage, voices);
+      utter.onerror = () => {
+        if (cancelled || voices.length === 0) return;
+        const fallbackVoice = voices.find((voice) => voice.default) ?? voices[0];
+        if (!fallbackVoice || fallbackVoice === utter.voice) return;
 
-  const voices = synth.getVoices();
-  if (voices.length > 0) {
-    // Voices already loaded
-    speakWithVoice(voices);
-  } else {
-    // Voices not loaded yet — wait for them
-    synth.onvoiceschanged = () => {
-      speakWithVoice(synth.getVoices());
+        const retry = new SpeechSynthesisUtterance(speechText);
+        retry.voice = fallbackVoice;
+        retry.lang = fallbackVoice.lang || getPrimarySpeechLang(speechLanguage);
+        retry.rate = speechLanguage === "en" ? 0.92 : 0.88;
+        synth.speak(retry);
+      };
+
+      speakTimer = setTimeout(() => {
+        if (!cancelled) synth.speak(utter);
+      }, 120);
+    }
+
+    const voices = synth.getVoices();
+    const hasLanguageVoice = voices.some((voice) => voiceMatchesLanguage(voice, speechLanguage));
+
+    if (voices.length > 0 && (hasLanguageVoice || speechLanguage === "en")) {
+      speakWithVoice(voices);
+    } else {
+      const handleVoicesChanged = () => {
+        if (voiceWaitTimer) clearTimeout(voiceWaitTimer);
+        speakWithVoice(synth.getVoices());
+        if (synth.onvoiceschanged === handleVoicesChanged) synth.onvoiceschanged = null;
+      };
+
+      synth.onvoiceschanged = handleVoicesChanged;
+      voiceWaitTimer = setTimeout(handleVoicesChanged, TTS_VOICE_WAIT_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      if (speakTimer) clearTimeout(speakTimer);
+      if (voiceWaitTimer) clearTimeout(voiceWaitTimer);
       synth.onvoiceschanged = null;
+      synth.cancel();
     };
-  }
-
-  return () => {
-    cancelled = true;
-    synth.cancel();
-  };
-}, [currentIdx, currentQuestion?.text, lang]);
+  }, [currentIdx, currentQuestion?.id, currentQuestion?.language, currentQuestion?.text, lang]);
 
   function startListening() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -535,7 +618,14 @@ useEffect(() => {
             {isLoadingQuestion ? (
               <div className="h-20 animate-pulse rounded-md bg-muted" />
             ) : currentQuestion ? (
-              <p className="text-lg font-semibold leading-relaxed text-[#24150f]">{currentQuestion.text}</p>
+              <div className="space-y-3">
+                {currentIdx === 0 && (
+                  <p className="text-sm font-medium leading-relaxed text-[#7b241c]">
+                    {FIRST_QUESTION_GREETING[currentQuestionLanguage]}
+                  </p>
+                )}
+                <p className="text-lg font-semibold leading-relaxed text-[#24150f]">{currentQuestion.text}</p>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">{questionError || t("preparing_next_question")}</p>
             )}
