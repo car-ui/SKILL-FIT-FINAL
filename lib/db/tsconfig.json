@@ -6,6 +6,8 @@
     "emitDeclarationOnly": true,
     "outDir": "dist",
     "rootDir": "src",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "types": ["node"]
   },
   "include": ["src"]

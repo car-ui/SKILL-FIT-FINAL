@@ -3,18 +3,20 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": false,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/db": ["../../lib/db/src"],
+      "@workspace/db/*": ["../../lib/db/src/*"],
+      "@workspace/api-zod": ["../../lib/api-zod/src"],
+      "@workspace/api-zod/*": ["../../lib/api-zod/src/*"],
+      "@workspace/integrations-gemini-ai": ["../../lib/integrations-gemini-ai/src"],
+      "@workspace/integrations-gemini-ai/*": ["../../lib/integrations-gemini-ai/src/*"]
+    }
   },
   "include": ["src"],
-  "references": [
-    {
-      "path": "../../lib/db"
-    },
-    {
-      "path": "../../lib/api-zod"
-    },
-    {
-      "path": "../../lib/integrations-gemini-ai"
-    }
-  ]
+  
 }

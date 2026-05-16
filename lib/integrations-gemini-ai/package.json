@@ -16,4 +16,8 @@
   "devDependencies": {
     "@types/node": "catalog:"
   }
+  ,
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
 }

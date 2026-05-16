@@ -9,4 +9,8 @@
   "dependencies": {
     "zod": "catalog:"
   }
+  ,
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
 }
