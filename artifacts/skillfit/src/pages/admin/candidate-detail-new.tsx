@@ -461,11 +461,11 @@ export default function CandidateDetail() {
                       <p className="text-xs text-muted-foreground mt-1">Liveness</p>
                     </div>
                     <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-lg font-bold text-foreground">{candidate.integrityCheck.phoneReuse ? "⚠" : "✓"}</p>
+                      <p className="text-lg font-bold text-foreground">{(candidate.integrityCheck as any).phoneReuse ? "⚠" : "✓"}</p>
                       <p className="text-xs text-muted-foreground mt-1">Phone Reuse</p>
                     </div>
                     <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-lg font-bold text-foreground">{candidate.integrityCheck.deviceReuse ? "⚠" : "✓"}</p>
+                      <p className="text-lg font-bold text-foreground">{(candidate.integrityCheck as any).deviceReuse ? "⚠" : "✓"}</p>
                       <p className="text-xs text-muted-foreground mt-1">Device Reuse</p>
                     </div>
                   </div>
@@ -478,16 +478,16 @@ export default function CandidateDetail() {
                       ))}
                     </div>
                   )}
-                  {candidate.integrityCheck.duplicateCandidateId && (
+                  {(candidate.integrityCheck as any).duplicateCandidateId && (
                     <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-sm text-amber-900 font-medium mb-2">⚠ Duplicate Detection</p>
                       <p className="text-sm text-amber-800">
                         This candidate may be a duplicate of{" "}
                         <button
-                          onClick={() => navigate(`/admin/candidates/${candidate.integrityCheck.duplicateCandidateId}`)}
+                          onClick={() => navigate(`/admin/candidates/${(candidate.integrityCheck as any).duplicateCandidateId}`)}
                           className="text-primary hover:underline font-medium"
                         >
-                          Candidate #{candidate.integrityCheck.duplicateCandidateId}
+                          Candidate #{(candidate.integrityCheck as any).duplicateCandidateId}
                         </button>
                       </p>
                     </div>

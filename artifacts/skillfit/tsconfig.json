@@ -8,15 +8,14 @@
     "lib": ["esnext", "dom", "dom.iterable"],
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "types": ["node", "vite/client"],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@workspace/api-client-react": ["../../lib/api-client-react/src"],
+      "@workspace/api-client-react/*": ["../../lib/api-client-react/src/*"]
     }
   },
-  "references": [
-    {
-      "path": "../../lib/api-client-react"
-    }
-  ]
+  
 }

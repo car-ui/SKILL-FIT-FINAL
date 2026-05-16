@@ -10,6 +10,19 @@ globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
+// Simple esbuild plugin to resolve imports that start with "@/" to this
+// package's `src` directory. This mirrors TypeScript/Vite path aliases.
+const aliasAtPlugin = {
+  name: "alias-at-plugin",
+  setup(build) {
+    build.onResolve({ filter: /^@\// }, (args) => {
+      const rel = args.path.replace(/^@\//, "");
+      const resolved = path.resolve(artifactDir, "src", rel);
+      return { path: resolved };
+    });
+  },
+};
+
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
@@ -106,7 +119,9 @@ async function buildAll() {
     sourcemap: "linked",
     plugins: [
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] })
+      esbuildPluginPino({ transports: ["pino-pretty"] }),
+      // resolve `@/` paths to the package `src` directory
+      aliasAtPlugin,
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {
